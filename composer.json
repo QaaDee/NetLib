@@ -1,0 +1,27 @@
+{
+  "name": "qade/net-lib",
+  "description": "Library for sending requests",
+  "homepage": "https://github.com/QaaDee/NetLib",
+  "license": "MIT",
+  "keywords": [
+    "php",
+    "curl",
+    "httpclient",
+    "request"
+  ],
+  "authors": [
+    {
+      "name": "QaaDee",
+      "email": "user.qade@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.2.0",
+    "ext-curl": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "QaaDee\\NetLib\\": "src/"
+    }
+  }
+}
