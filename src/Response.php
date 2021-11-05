@@ -65,11 +65,19 @@ class Response
      */
     protected function parseHeaders()
     {
-        $rawHeaderLines = explode(PHP_EOL, $this->rawResponseHeader);
+        $rawHeaderLines = array_diff(
+            explode(PHP_EOL, $this->rawResponseHeader),
+            [null]
+        );
         unset($rawHeaderLines[0]);
 
         foreach ($rawHeaderLines as $rawHeaderLine) {
-            list($name, $value) = explode(': ', $rawHeaderLine);
+            $item = explode(': ', $rawHeaderLine, 2);
+
+            if (count($item) !== 2)
+                continue;
+
+            list($name, $value) = $item;
 
             $name = mb_strtolower($name);
 
