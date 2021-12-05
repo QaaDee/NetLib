@@ -135,8 +135,10 @@ class MultiRequest
                 try {
                     call_user_func($this->callbackRequestEnd, $request, $response);
                 } catch (\Throwable $throwable) {
+
                 }
             }
+
             curl_multi_remove_handle($this->currentMultiCurl, $curlResource);
             unset($this->currentRequests[$curlResourceId], $this->currentCurlResources[$curlResourceId]);
         }

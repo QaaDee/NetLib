@@ -202,11 +202,11 @@ class Request
      */
     public function parseResponse($curlResource, $rawResponse): Response
     {
-        $curlError = curl_error($curlResource);
-        $curlErrno = curl_errno($curlResource);
-
-        if ($curlError || $curlErrno)
-            throw new RequestException($curlError ?? 'Request error', $curlErrno);
+        // $curlError = curl_error($curlResource);
+        // $curlErrno = curl_errno($curlResource);
+        //
+        // if ($curlError || $curlErrno)
+        //     throw new RequestException($curlError ?? 'Request error', $curlErrno);
 
         $requestHeader = curl_getinfo($curlResource, CURLINFO_HEADER_OUT);
         $responseHeader = $responseBody = null;
