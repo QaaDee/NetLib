@@ -113,10 +113,9 @@ class Response
     }
 
     /**
-     * @param string $format
      * @return string
      */
-    public function getRawResponseBody($format = ''): string
+    public function getRawResponseBody(): string
     {
         return $this->rawResponseBody;
     }

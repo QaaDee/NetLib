@@ -80,7 +80,7 @@ class MultiRequest
     }
 
     /**
-     * @param callable|null $callbackRequestEnd(\QaaDee\NetLib\Request $request, \QaaDee\NetLib\Response $response)
+     * @param callable|null $callbackRequestEnd (\QaaDee\NetLib\Request $request, \QaaDee\NetLib\Response $response)
      * @return $this
      */
     public function setCallbackRequestEnd(?callable $callbackRequestEnd)
@@ -120,34 +120,30 @@ class MultiRequest
      */
     protected function recalculate()
     {
-        foreach ($this->currentRequests as $curlResourceId => $request) {
-            $curlResource = $this->currentCurlResources[$curlResourceId];
-            $httpStatusCode = curl_getinfo($curlResource, CURLINFO_HTTP_CODE);
+        while ($curlResourceInfo = curl_multi_info_read($this->currentMultiCurl)) {
+            ['handle' => $curlResource] = $curlResourceInfo;
 
-            if ($httpStatusCode < 200)
-                continue;
+            $curlResourceId = (int)$curlResource;
+
+            $request = $this->currentRequests[$curlResourceId];
 
             if ($this->callbackRequestEnd) {
                 $response = $request->parseResponse(
                     $curlResource,
                     curl_multi_getcontent($curlResource)
                 );
-
                 try {
                     call_user_func($this->callbackRequestEnd, $request, $response);
                 } catch (\Throwable $throwable) {
-
                 }
             }
-
             curl_multi_remove_handle($this->currentMultiCurl, $curlResource);
-
             unset($this->currentRequests[$curlResourceId], $this->currentCurlResources[$curlResourceId]);
         }
     }
 
     /**
-     * @param bool $notBlock
+     * @param false $notBlock
      * @throws MultiRequestException
      * @throws RequestException
      */
