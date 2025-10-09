@@ -158,7 +158,7 @@ class Request
     }
 
     /**
-     * @return false|resource
+     * @return \CurlHandle|resource
      * @throws RequestException
      */
     public function createCurlResource()
@@ -189,7 +189,8 @@ class Request
             $options[CURLOPT_CUSTOMREQUEST] = $this->method;
 
         $curlResource = curl_init($url);
-        curl_setopt_array($curlResource, $options + self::REQUIRED_OPTIONS);
+
+        curl_setopt_array($curlResource, self::REQUIRED_OPTIONS + $options);
 
         return $curlResource;
     }
@@ -216,7 +217,7 @@ class Request
             $responseHeader = substr($rawResponse, 0, $headerSize);
             $responseBody = substr($rawResponse, $headerSize);
 
-            if ($responseBody[-1] === "\n")
+            if ($responseBody && $responseBody[-1] === "\n")
                 $responseBody = substr($responseBody, 0, -1);
         } else
             $responseBody = $rawResponse;

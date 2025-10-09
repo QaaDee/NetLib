@@ -9,164 +9,122 @@ namespace QaaDee\NetLib;
 class MultiRequest
 {
     /**
-     * @var Request[]
-     */
-    protected $requests;
-
-    /**
      * @var callable
      */
-    protected $callbackRequestEnd;
+    protected $onRequestEnd;
 
     /**
-     * @var resource
+     * @var \CurlMultiHandle|resource
      */
-    protected $currentMultiCurl;
-
-    /**
-     * @var Request[]
-     */
-    protected $currentRequests = [];
-
-    /**
-     * @var resource[]
-     */
-    protected $currentCurlResources = [];
+    protected $multiCurlHandle;
 
     /**
      * @var int
      */
-    protected $currentMultiCurlRunning = 0;
+    protected $isRunning;
 
     /**
-     * MultiRequest constructor.
-     * @param Request[] $requests
+     * @var array<string, Request>
      */
-    public function __construct(array $requests = [])
+    protected $runningRequests = [];
+
+    /**
+     * @var array<string, \CurlHandle|resource>
+     */
+    protected $runningCurlResources = [];
+
+    /**
+     * @param callable|null $onRequestEnd
+     */
+    public function __construct(?callable $onRequestEnd = null)
     {
-        $this->requests = $requests;
+        $this->multiCurlHandle = curl_multi_init();
+
+        $this->setOnRequestEnd($onRequestEnd);
     }
 
     /**
-     * @param Request $request
+     * @param callable|null $onRequestEnd
      * @return $this
      */
-    public function addRequest(Request $request)
+    public function setOnRequestEnd(?callable $onRequestEnd)
     {
-        $this->requests[] = $request;
+        $this->onRequestEnd = $onRequestEnd;
         return $this;
     }
 
     /**
      * @param Request $request
      * @return $this
+     * @throws RequestException
      */
-    public function removeRequest(Request $request)
+    public function addRequest(Request $request): self
     {
-        $index = array_search($request, $this->requests);
+        $curlResource = $request->createCurlResource();
 
-        if ($index !== false)
-            unset($this->requests[$index]);
+        $this->runningRequests[spl_object_hash($curlResource)] = $request;
+        $this->runningCurlResources[spl_object_hash($curlResource)] = $curlResource;
+
+        curl_multi_add_handle($this->multiCurlHandle, $curlResource);
 
         return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getCountRunningRequests()
+    {
+        return count($this->runningRequests);
     }
 
     /**
      * @return void
-     */
-    public function clearRequests()
-    {
-        $this->requests = [];
-    }
-
-    /**
-     * @param callable|null $callbackRequestEnd (\QaaDee\NetLib\Request $request, \QaaDee\NetLib\Response $response)
-     * @return $this
-     */
-    public function setCallbackRequestEnd(?callable $callbackRequestEnd)
-    {
-        $this->callbackRequestEnd = $callbackRequestEnd;
-        return $this;
-    }
-
-    /**
-     * @throws MultiRequestException
-     */
-    protected function preparing()
-    {
-        $this->currentMultiCurl = curl_multi_init();
-
-        foreach ($this->requests as $request) {
-            if (!$request instanceof Request)
-                continue;
-
-            $curlResource = $request->createCurlResource();
-            $this->currentRequests[(int)$curlResource] = $request;
-            $this->currentCurlResources[(int)$curlResource] = $curlResource;
-
-            curl_multi_add_handle($this->currentMultiCurl, $curlResource);
-        }
-
-        if (!$this->currentRequests) {
-            if ($this->currentMultiCurl)
-                curl_multi_close($this->currentMultiCurl);
-
-            throw new MultiRequestException('nothing to do');
-        }
-    }
-
-    /**
      * @throws RequestException
      */
     protected function recalculate()
     {
-        while ($curlResourceInfo = curl_multi_info_read($this->currentMultiCurl)) {
+        while ($curlResourceInfo = curl_multi_info_read($this->multiCurlHandle, $query)) {
             ['handle' => $curlResource] = $curlResourceInfo;
 
-            $curlResourceId = (int)$curlResource;
+            $curlResourceHash = spl_object_hash($curlResource);
 
-            $request = $this->currentRequests[$curlResourceId];
+            $request = $this->runningRequests[$curlResourceHash];
+            $response = $request->parseResponse(
+                $curlResource,
+                curl_multi_getcontent($curlResource)
+            );
 
-            if ($this->callbackRequestEnd) {
-                $response = $request->parseResponse(
-                    $curlResource,
-                    curl_multi_getcontent($curlResource)
-                );
+            curl_multi_remove_handle($this->multiCurlHandle, $curlResource);
+            curl_close($curlResource);
+            unset($this->runningRequests[$curlResourceHash], $this->runningCurlResources[$curlResourceHash]);
+
+            if ($this->onRequestEnd) {
                 try {
-                    call_user_func($this->callbackRequestEnd, $request, $response);
+                    call_user_func($this->onRequestEnd, $request, $response);
                 } catch (\Throwable $throwable) {
-
+//                    print_r($throwable->__toString());
                 }
             }
-
-            curl_multi_remove_handle($this->currentMultiCurl, $curlResource);
-            unset($this->currentRequests[$curlResourceId], $this->currentCurlResources[$curlResourceId]);
         }
     }
 
     /**
-     * @param false $notBlock
-     * @throws MultiRequestException
+     * @param bool $isBlocked
+     * @return void
      * @throws RequestException
      */
-    public function execute($notBlock = false)
+    public function execute(bool $isBlocked = true)
     {
-        if (!$this->currentMultiCurl)
-            $this->preparing();
-
         do {
-            curl_multi_exec($this->currentMultiCurl, $this->currentMultiCurlRunning);
-
+            curl_multi_exec($this->multiCurlHandle, $this->isRunning);
             $this->recalculate();
+        } while ($this->isRunning && $isBlocked);
+    }
 
-            if ($notBlock)
-                break;
-        } while ($this->currentMultiCurlRunning);
-
-        if (!$this->currentCurlResources) {
-            curl_multi_close($this->currentMultiCurl);
-            $this->currentRequests = $this->currentCurlResources = [];
-        }
+    public function __destruct()
+    {
+        curl_multi_close($this->multiCurlHandle);
     }
 }
 
