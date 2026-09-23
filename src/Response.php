@@ -41,6 +41,16 @@ class Response
     protected $rawCurlInfo;
 
     /**
+     * @var string
+     */
+    protected $error;
+
+    /**
+     * @var integer
+     */
+    protected $errno;
+
+    /**
      * Response constructor.
      *
      * @param $requestHeader
@@ -49,13 +59,16 @@ class Response
      * @param $responseBody
      * @param array $curlInfo
      */
-    public function __construct($requestHeader, $requestBody, $responseHeader, $responseBody, array $curlInfo = [])
+    public function __construct($requestHeader, $requestBody, $responseHeader, $responseBody, array $curlInfo = [], $error = null, $errno = null)
     {
         $this->rawRequestHeader = $requestHeader;
         $this->rawRequestBody = $requestBody;
         $this->rawResponseHeader = $responseHeader;
         $this->rawResponseBody = $responseBody;
         $this->rawCurlInfo = $curlInfo;
+
+        $this->error = $error;
+        $this->errno = $errno;
 
         $this->parseHeaders();
     }
@@ -136,6 +149,16 @@ class Response
     public function getHeaders()
     {
         return $this->headers;
+    }
+
+    public function getError(): mixed
+    {
+        return $this->error;
+    }
+
+    public function getErrno(): mixed
+    {
+        return $this->errno;
     }
 
     /**

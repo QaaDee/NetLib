@@ -2,9 +2,6 @@
 
 namespace QaaDee\NetLib;
 
-use QaaDee\NetLib\RequestException;
-use QaaDee\NetLib\Response;
-
 /**
  * Class Request
  * @package QaaDee\NetLib
@@ -12,7 +9,8 @@ use QaaDee\NetLib\Response;
 class Request
 {
     const NOT_CUSTOM_METHOD = [
-        'GET', 'POST'
+        'GET',
+        'POST'
     ];
 
     const DEFAULT_OPTIONS = [
@@ -167,26 +165,30 @@ class Request
         $post = $this->post;
         $options = self::DEFAULT_OPTIONS + $this->options;
 
-        if (!$url)
+        if (!$url) {
             throw new RequestException('nothing to do');
+        }
 
         if ($this->get) {
-            if (strpos('?', $url) === false)
+            if (strpos('?', $url) === false) {
                 $url .= '?';
-            elseif ($url[-1] !== '&')
+            } elseif ($url[-1] !== '&') {
                 $url .= '&';
+            }
 
             $url .= http_build_query($this->get);
         }
 
-        if ($post)
+        if ($post) {
             $options += [
                 CURLOPT_POST => true,
                 CURLOPT_POSTFIELDS => is_array($post) ? http_build_query($post) : $post
             ];
+        }
 
-        if (!in_array($this->method, self::NOT_CUSTOM_METHOD))
+        if (!in_array($this->method, self::NOT_CUSTOM_METHOD)) {
             $options[CURLOPT_CUSTOMREQUEST] = $this->method;
+        }
 
         $curlResource = curl_init($url);
 
@@ -203,11 +205,8 @@ class Request
      */
     public function parseResponse($curlResource, $rawResponse): Response
     {
-        // $curlError = curl_error($curlResource);
-        // $curlErrno = curl_errno($curlResource);
-        //
-        // if ($curlError || $curlErrno)
-        //     throw new RequestException($curlError ?? 'Request error', $curlErrno);
+        $curlError = curl_error($curlResource);
+        $curlErrno = curl_errno($curlResource);
 
         $requestHeader = curl_getinfo($curlResource, CURLINFO_HEADER_OUT);
         $responseHeader = $responseBody = null;
@@ -217,12 +216,14 @@ class Request
             $responseHeader = substr($rawResponse, 0, $headerSize);
             $responseBody = substr($rawResponse, $headerSize);
 
-            if ($responseBody && $responseBody[-1] === "\n")
+            if ($responseBody && $responseBody[-1] === "\n") {
                 $responseBody = substr($responseBody, 0, -1);
-        } else
+            }
+        } else {
             $responseBody = $rawResponse;
+        }
 
-        return new Response($requestHeader, '', $responseHeader, $responseBody, curl_getinfo($curlResource));
+        return new Response($requestHeader, '', $responseHeader, $responseBody, curl_getinfo($curlResource), $curlError, $curlErrno);
     }
 
     /**

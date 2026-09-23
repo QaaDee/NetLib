@@ -92,7 +92,7 @@ class MultiRequest
             $request = $this->runningRequests[$curlResourceHash];
             $response = $request->parseResponse(
                 $curlResource,
-                curl_multi_getcontent($curlResource)
+                $this->multiCurlHandle
             );
 
             curl_multi_remove_handle($this->multiCurlHandle, $curlResource);
